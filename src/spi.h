@@ -10,14 +10,10 @@ typedef enum {
 
 
 
+
+
 void init_spi(void);
-void read_spi(chip_cs_t cs, unsigned char len, char *buf);
-
-
-
-
-
-
+void read_spi(chip_cs_t cs, unsigned char len, unsigned char *buf);
 
 
 #endif

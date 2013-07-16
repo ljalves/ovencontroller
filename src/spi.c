@@ -7,6 +7,7 @@
 void init_spi (void)
 {
 	/* DDR register */
+	/* Setup pins as input and output */
 	/* 0 = input, 1 = output */
 
 	/* MISO = input */
@@ -19,22 +20,28 @@ void init_spi (void)
 	DDRD |= (1 << DDD4);
 
 
-	/* set default levels */
+	/* Set default pin levels */
 	/* RTC_CS = 1*/
 	PORTB |= 1 << PB1;
 
 	/* T_CS = 1 */
 	PORTD |= 1 << PD4;
-
 }
 
 
-void read_spi(chip_cs_t cs, unsigned char len, char *buf)
+void read_spi(chip_cs_t cs, unsigned char len, unsigned char *buf)
 {
 	unsigned char i, j;
-	
-	if (cs == TEMP_CS)
+
+	/* assert chip select pin */
+	switch (cs) {
+	case TEMP_CS:
 		PORTD &= ~(1<<PD4);
+		break;
+	case RTC_CS:
+		PORTB &= ~(1<<PB1);
+		break;
+	}
 
 	/* clock = 0 */
 	PORTB &= ~(1<<PB7);
@@ -57,8 +64,15 @@ void read_spi(chip_cs_t cs, unsigned char len, char *buf)
 		}
 	}
 
-	if (cs == TEMP_CS)
+	/* de-assert chip select */
+	switch (cs) {
+	case TEMP_CS:
 		PORTD |= (1<<PD4);
+		break;
+	case RTC_CS:
+		PORTB |= (1<<PB1);
+		break;
+	}
 }
 
 

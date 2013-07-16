@@ -19,7 +19,8 @@ CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) \
 	-Wa,-ahlms=$(firstword                  \
 	$(filter %.lst, $(<:.c=.lst)))
 
-PRJSRC=src/main.c src/spi.c
+PRJSRC= src/main.c src/spi.c src/uart.c \
+	src/temp.c
 
 #  C
 CFILES=$(filter %.c, $(PRJSRC))
@@ -47,6 +48,7 @@ HEXFORMAT=ihex
 .SUFFIXES : .c .cc .cpp .C .o .out .s .S \
 	.hex .ee.hex .h .hh .hpp
 
+.PHONY : flash
 
 
 all: $(TARGET)
@@ -65,3 +67,8 @@ $(PROJECT_NAME).out.hex: $(PROJECT_NAME).out
 # object from C
 .c.o: 
 	$(CC) $(CFLAGS) -c $< -o $@
+
+flash:
+	@avrdude -p $(PROGRAMMER_MCU) -c $(AVRDUDE_PROGRAMMER) -U flash:w:$(PROJECT_NAME).out.hex
+
+
