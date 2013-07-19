@@ -1,0 +1,7 @@
+Timeline,Temperature,Comment
+0,100,Pre-heat
+80,150,Ramp-up 1
+100,183,Ramp-up 2
+125,260,Peak
+135,260,Ramp-down
+155,150,Finish
