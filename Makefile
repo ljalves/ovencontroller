@@ -20,7 +20,7 @@ CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) \
 	$(filter %.lst, $(<:.c=.lst)))
 
 PRJSRC= src/main.c src/spi.c src/uart.c \
-	src/temp.c src/lcd.c
+	src/temp.c src/lcd.c src/controller.c
 
 #  C
 CFILES=$(filter %.c, $(PRJSRC))
