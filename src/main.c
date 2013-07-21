@@ -17,11 +17,12 @@
 #include "lcd.h"
 #include "controller.h"
 
+
 void main(void)
 {
 	struct temp_sensor temp;
 	struct controller ctrl = {
-		.kp = 11, .kd = 1, .ki = 45,
+		.kp = 11, .kd = 0, .ki = 25,
 		.integral = 0,
 		.output = 0,
 		.max = 500, .min = 0,
@@ -36,7 +37,7 @@ void main(void)
 
 	unsigned char start, end;
 
-
+	unsigned int time_now;
 	unsigned int ps1_timer, ps2_timer;
 	unsigned int ps3_timer;
 
@@ -84,12 +85,13 @@ void main(void)
 	start_buzzer(ONE_BEEP_L);
 
 	/* main task loop */
-	ps1_timer = ps2_timer = ps3_timer = jiffies;
+	ps1_timer = ps2_timer = ps3_timer = now();
 	for (;;) {
+		time_now = now();
 
 		/* control process - 200ms tick */
-		if (jiffies - ps1_timer > 20) {
-			ps1_timer += 20;
+		if (time_now - ps1_timer > 10) {
+			ps1_timer += 10;
 
 			/* read temperature */
 			read_temp(&temp);
@@ -105,7 +107,7 @@ void main(void)
 		}
 
 		/* buzzer process - 250ms tick */
-		if (jiffies - ps3_timer > 25) {
+		if (time_now - ps3_timer > 25) {
 			ps3_timer += 25;
 
 			/* run buzzer task */
@@ -113,7 +115,7 @@ void main(void)
 		}
 
 		/* 1 sec tick */
-		if (jiffies - ps2_timer > 100) {
+		if (time_now - ps2_timer > 100) {
 			ps2_timer += 100;
 			sec++;
 
@@ -125,9 +127,9 @@ void main(void)
 			if ((start == 1) && (end == 0)) {
 				if (sec < 90) {
 					setpoint = 150;
-					start_buzzer(ONE_BEEP_S);
+					//start_buzzer(ONE_BEEP_S);
 				} else if ((sec < 120) || (temp.ext_temp >> 2 < 230)) {
-					start_buzzer(TWO_BEEPS_S);
+					//start_buzzer(TWO_BEEPS_S);
 					setpoint = 230;
 				} else {
 					start_buzzer(TWO_BEEPS_L);
@@ -135,7 +137,6 @@ void main(void)
 					end = 1;
 				}
 			}
-
 
 			/* clear lcd */
 			lcd_clear();

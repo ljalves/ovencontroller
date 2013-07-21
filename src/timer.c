@@ -3,15 +3,15 @@
 #include "timer.h"
 #include "buzzer.h"
 
-
+/* counter that increments each 250us */
 volatile unsigned char cnt250;
-unsigned int volatile jiffies;
 
-EXPORT_SYMBOL(jiffies);
+/* counter that increments each 10ms */
+volatile unsigned int jiffies;
 
-ISR(TIMER0_OVF_vect)
+
+ISR(TIMER0_COMP_vect)
 {
-	TCNT0 += 6;
 	if (++cnt250 == 40) {
 		jiffies++;
 		cnt250 = 0;
@@ -26,12 +26,24 @@ void init_timer(void)
 {
 	/* Setup Timer 0 */
 	/* prescaler/8 */
-	TCCR0 = 1 << CS01;
+	TCCR0 = (1 << CS01) | (1 << WGM01);
 	TCNT0 = 0;
 
+	/* top value for the timer */
+	OCR0 = 249;
+
 	/* Enable timer0 interrupt */
-	TIMSK |= (1<<TOIE0);
+	TIMSK |= (1 << OCIE0);
 }
 
-//EXPORT_SYMBOL(jiffies);
+unsigned int now(void)
+{
+	unsigned int now;
+
+	/* read the current value atomically */
+	cli();
+	now = jiffies;
+	sei();
+	return now;
+}
 

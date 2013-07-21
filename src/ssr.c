@@ -7,8 +7,7 @@ struct ssr_config {
 	ssr_state_t state;
 	unsigned int period;
 	unsigned int pwm;
-
-	unsigned long start_time;
+	unsigned int start_time;
 } ssr;
 
 /* set ssr pin level */
@@ -51,6 +50,8 @@ void set_ssr_pwm(unsigned int pwm)
 
 void ssr_task(void)
 {
+	unsigned int time_now;
+
 	switch (ssr.state) {
 	case SSR_OFF:
 		set_ssr_pin(0);
@@ -59,18 +60,19 @@ void ssr_task(void)
 		set_ssr_pin(1);
 		break;
 	case SSR_PWM:
+		time_now = now();
 		/* always on */
 		if (ssr.pwm == ssr.period)
 			set_ssr_pin(1);
 		else
 		/* compare current time with pwm value */
-		if (jiffies > ssr.pwm + ssr.start_time)
+		if (time_now > ssr.pwm + ssr.start_time)
 			set_ssr_pin(0);
 		else
 			set_ssr_pin(1);
 		
 		/* switch compare window */
-		if (jiffies > ssr.period + ssr.start_time)
+		if (time_now > ssr.period + ssr.start_time)
 			ssr.start_time += ssr.period;
 
 		break;
