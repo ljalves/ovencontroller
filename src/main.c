@@ -175,9 +175,6 @@ void main(void)
 			printf("%s\n", buf);
 
 			last_temp = temp.ext_temp;
-
-
-			printf("jiffies=%d ps2_timer=%d\n", jiffies, ps2_timer);
 		}
 	}
 }
