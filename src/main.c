@@ -18,7 +18,7 @@
 #include "controller.h"
 
 
-void main(void)
+int main(void)
 {
 	struct temp_sensor temp;
 	struct controller ctrl = {
@@ -27,19 +27,24 @@ void main(void)
 		.output = 0,
 		.max = 500, .min = 0,
 	};
+	int last_temp, temp_rate;
+	char sign;
+
+	unsigned int time_now;
+	unsigned int ps1_timer, ps2_timer, ps3_timer;
+
+
 
 	unsigned int sec = 0;
 
 	int setpoint = 100;
 
-	int last_temp = 0;
+
 
 
 	unsigned char start, end;
 
-	unsigned int time_now;
-	unsigned int ps1_timer, ps2_timer;
-	unsigned int ps3_timer;
+
 
 
 	const char initmsg1[] = "Reflow Oven\0";
@@ -53,32 +58,30 @@ void main(void)
 	init_buzzer();
 	init_spi();
 	init_lcd();
+	init_temp(&temp);
 	init_timer();
 	init_uart();
 
+	/* LCD wellcome message */
+	lcd_sendline(LCD_LINE_1, (char *) initmsg1);
 
+	lcd_sendline(LCD_LINE_2, (char *) initmsg2);
+	_delay_ms(1000);
 
-	lcd_sendline(LCD_LINE_1, initmsg1);
-	lcd_sendline(LCD_LINE_2, initmsg2);
-	_delay_ms(1500);
-
-
-	read_temp(&temp);
-	ctrl.prev_input = temp.ext_temp >> 2;
-
+	/* pre-fill previous temperature */
+	ctrl.prev_input = temp.avg;
+	last_temp = temp.avg;
 
 	/* setup ssr pwm controller */
 	set_ssr_period(500);
 	set_ssr_pwm(250);
 	set_ssr_state(SSR_PWM);
 
-
 	/* Enable global interrupts */
 	sei();
 
 	start = 0;
 	end = 0;
-
 
 
 	/* ready beep */
@@ -119,6 +122,8 @@ void main(void)
 			ps2_timer += 100;
 			sec++;
 
+			temp_rate = temp.avg - last_temp;
+
 			if ((temp.ext_temp >> 2 > 100) && (start == 0)) {
 				start = 1;
 				sec = 0;
@@ -141,7 +146,32 @@ void main(void)
 			/* clear lcd */
 			lcd_clear();
 
-			sprintf(buf, "int_temp=%4d.%0004dC",
+			if (temp_rate < 0) {
+				sign = '-';
+				temp_rate = 0 - temp_rate;
+			} else
+				sign = ' ';
+
+			sprintf(buf, "T=%3d.%02dC  Tr=%c%d.%02dC",
+				temp.inst, (temp.avg & 3) * 25,
+				sign, temp_rate >> 2, (temp_rate & 3) * 25);
+			lcd_sendline(LCD_LINE_1, buf);
+			printf("%s\n", buf);
+
+			sprintf(buf, "Tset=%dC    PWM=%d",
+				setpoint, ctrl.output);
+			lcd_sendline(LCD_LINE_2, buf);
+			printf("%s\n", buf);
+
+			/* display total time */
+			sprintf(buf, "Time=%02dm%02ds",
+				sec / 60, sec % 60);
+			lcd_sendline(LCD_LINE_3, buf);
+			printf("%s\n", buf);
+
+
+#ifdef DEBUG
+			sprintf(buf, "int_temp=%4d.%04dC",
 				temp.int_temp >> 4,
 				((temp.ext_temp & 0xf) * 625));
 			lcd_sendline(LCD_LINE_1, buf);
@@ -159,7 +189,7 @@ void main(void)
 			printf("%s\n", buf);
 
 
-			/*printf("temp status: %s, %s, %s, %s\n",
+			printf("temp status: %s, %s, %s, %s\n",
 				(temp.status & T_OPENCIRCUIT) ?
 				"OPEN CIRCUIT" : "NO OPEN CIRCUIT",
 				(temp.status & T_SHORTGND) ?
@@ -167,7 +197,7 @@ void main(void)
 				(temp.status & T_SHORTVCC) ?
 				"SHORT TO VCC" : "NO SHORT TO VCC",
 				(temp.status & T_FAULT) ? "FAULT" : "NO FAULT");
-			*/
+			
 
 			sprintf(buf, "slope = %4d.%2d",
 				(temp.ext_temp - last_temp) >> 2,
@@ -175,8 +205,13 @@ void main(void)
 			lcd_sendline(LCD_LINE_4, buf);
 			printf("%s\n", buf);
 
-			last_temp = temp.ext_temp;
+
+#endif
+
+
+			last_temp = temp.avg;
 		}
 	}
+	return 0;
 }
 

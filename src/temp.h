@@ -3,7 +3,9 @@
 
 #include "spi.h"
 
-
+/* temperature averages */
+/* number of averages = 2^NR_AVG */
+#define NR_AVG 2
 
 typedef enum {
 	T_OPENCIRCUIT = 0x01,
@@ -13,14 +15,20 @@ typedef enum {
 } temp_status_t;
 
 
-
 struct temp_sensor {
-	short int_temp;
-	short ext_temp;
+	/* readings from sensor */
+	int int_temp;
+	int ext_temp;
 	unsigned char status;
+
+	/* calculated */
+	int inst, avg;
+	int buf[1 << NR_AVG];
+	unsigned char idx;
 };
 
 
+void init_temp(struct temp_sensor *t);
 void read_temp(struct temp_sensor *t);
 
 
