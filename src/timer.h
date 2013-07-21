@@ -2,7 +2,7 @@
 #define _TIMER_H_
 
 
-unsigned long volatile jiffies;
+extern unsigned int volatile jiffies;
 
 void init_timer(void);
 

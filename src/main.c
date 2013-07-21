@@ -11,23 +11,11 @@
 #include "spi.h"
 #include "uart.h"
 #include "timer.h"
+#include "buzzer.h"
 
 #include "temp.h"
 #include "lcd.h"
 #include "controller.h"
-
-
-volatile unsigned char buzz = 1, buzz_st = 0;
-
-void init_misc(void)
-{
-	/* init buzzer */
-	/* pin as output */
-	DDRA |= 1 << DDA4;
-	/* set pin low */
-	PORTA &= ~(1 << PA4);
-}
-
 
 void main(void)
 {
@@ -49,7 +37,8 @@ void main(void)
 	unsigned char start, end;
 
 
-	unsigned long ps1_timer, ps2_timer;
+	unsigned int ps1_timer, ps2_timer;
+	unsigned int ps3_timer;
 
 
 	const char initmsg1[] = "Reflow Oven\0";
@@ -58,17 +47,14 @@ void main(void)
 	char buf[20];
 
 
-
-
-
+	/* init peripherals */
 	init_ssr();
+	init_buzzer();
 	init_spi();
 	init_lcd();
-
 	init_timer();
 	init_uart();
 
-	init_misc();
 
 
 	lcd_sendline(LCD_LINE_1, initmsg1);
@@ -92,14 +78,18 @@ void main(void)
 	start = 0;
 	end = 0;
 
-	ps1_timer = ps2_timer = jiffies;
+
+
+	/* ready beep */
+	start_buzzer(ONE_BEEP_L);
 
 	/* main task loop */
+	ps1_timer = ps2_timer = ps3_timer = jiffies;
 	for (;;) {
 
-		/* control process - 100ms tick */
-		if (jiffies - ps1_timer > 10) {
-			ps1_timer = jiffies;
+		/* control process - 200ms tick */
+		if (jiffies - ps1_timer > 20) {
+			ps1_timer += 20;
 
 			/* read temperature */
 			read_temp(&temp);
@@ -114,14 +104,18 @@ void main(void)
 			ssr_task();
 		}
 
+		/* buzzer process - 250ms tick */
+		if (jiffies - ps3_timer > 25) {
+			ps3_timer += 25;
+
+			/* run buzzer task */
+			buzzer_task();
+		}
 
 		/* 1 sec tick */
 		if (jiffies - ps2_timer > 100) {
-			ps2_timer = jiffies;
+			ps2_timer += 100;
 			sec++;
-
-			if (buzz > 0)
-				buzz--;
 
 			if ((temp.ext_temp >> 2 > 100) && (start == 0)) {
 				start = 1;
@@ -129,15 +123,16 @@ void main(void)
 			}
 
 			if ((start == 1) && (end == 0)) {
-				/* calc setpoint */
 				if (sec < 90) {
 					setpoint = 150;
+					start_buzzer(ONE_BEEP_S);
 				} else if ((sec < 120) || (temp.ext_temp >> 2 < 230)) {
+					start_buzzer(TWO_BEEPS_S);
 					setpoint = 230;
 				} else {
+					start_buzzer(TWO_BEEPS_L);
 					setpoint = 0;
 					end = 1;
-					buzz = 2;
 				}
 			}
 
@@ -157,7 +152,7 @@ void main(void)
 			lcd_sendline(LCD_LINE_2, buf);
 			printf("%s\n", buf);
 
-			sprintf(buf, "output=%4d sp=%3d\n",
+			sprintf(buf, "pwm=%4d sp=%3d",
 				ctrl.output, setpoint);
 			lcd_sendline(LCD_LINE_3, buf);
 			printf("%s\n", buf);
@@ -180,6 +175,9 @@ void main(void)
 			printf("%s\n", buf);
 
 			last_temp = temp.ext_temp;
+
+
+			printf("jiffies=%d ps2_timer=%d\n", jiffies, ps2_timer);
 		}
 	}
 }

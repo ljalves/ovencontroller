@@ -1,9 +1,13 @@
 
 #include <avr/interrupt.h> 
 #include "timer.h"
+#include "buzzer.h"
 
 
 volatile unsigned char cnt250;
+unsigned int volatile jiffies;
+
+EXPORT_SYMBOL(jiffies);
 
 ISR(TIMER0_OVF_vect)
 {
@@ -13,15 +17,8 @@ ISR(TIMER0_OVF_vect)
 		cnt250 = 0;
 	}
 
-
-/*	if (buzz > 0) {
-		if (buzz_st == 0)
-			PORTA |= 1 << PA4;
-		else
-			PORTA &= ~(1 << PA4);
-		buzz_st = ~buzz_st;
-	} else
-		PORTA &= ~(1 << PA4);*/
+	/* buzz if needed */
+	buzzer_int();
 }
 
 
