@@ -52,14 +52,14 @@ HEXFORMAT=ihex
 .PHONY : flash
 
 
-all: $(TARGET)
+all: $(PROJECT_NAME).hex $(TARGET) 
 	
 
 
 $(TARGET): $(OBJDEPS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJDEPS)
 
-$(PROJECT_NAME).out.hex: $(PROJECT_NAME).out
+$(PROJECT_NAME).hex: $(PROJECT_NAME).out
 	$(OBJCOPY) -j .text                    \
 		-j .data                       \
 		-O $(HEXFORMAT) $< $@
