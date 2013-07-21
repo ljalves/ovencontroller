@@ -7,17 +7,17 @@
 #include <avr/interrupt.h> 
 #include <util/delay.h>
 
+#include "ssr.h"
 #include "spi.h"
 #include "uart.h"
 #include "temp.h"
 #include "lcd.h"
 #include "controller.h"
 
+
 volatile unsigned char cnt250;
 volatile unsigned char cnt10m, cnt_w, buzz = 1, buzz_st = 0;
 
-
-volatile unsigned char cb = 0;
 
 
 ISR(TIMER0_OVF_vect)
@@ -29,18 +29,15 @@ ISR(TIMER0_OVF_vect)
 		cnt250 = 0;
 	}
 
-//	if (++cb == 1) {
-//		cb = 0;
 
-		if (buzz > 0) {
-			if (buzz_st == 0)
-				PORTA |= 1 << PA4;
-			else
-				PORTA &= ~(1 << PA4);
-			buzz_st = ~buzz_st;
-		} else
+	if (buzz > 0) {
+		if (buzz_st == 0)
+			PORTA |= 1 << PA4;
+		else
 			PORTA &= ~(1 << PA4);
-//	}
+		buzz_st = ~buzz_st;
+	} else
+		PORTA &= ~(1 << PA4);
 }
 
 void init_timer(void)
@@ -56,13 +53,6 @@ void init_timer(void)
 
 void init_misc(void)
 {
-	/* init SSR pin */
-	/* set pin as output */
-	DDRA |= 1 << DDA7;
-	/* set pin low */
-	PORTA &= ~(1 << PA7);
-
-
 	/* init buzzer */
 	/* pin as output */
 	DDRA |= 1 << DDA4;
@@ -70,13 +60,6 @@ void init_misc(void)
 	PORTA &= ~(1 << PA4);
 }
 
-static void ssr(unsigned char state)
-{
-	if (state == 1)
-		PORTA |= 1 << PA7;
-	else
-		PORTA &= ~(1 << PA7);
-}
 
 
 
@@ -97,6 +80,8 @@ int main(void)
 
 	int setpoint = 100;
 
+	int last_temp = 0;
+
 
 	unsigned char start, end;
 
@@ -106,10 +91,13 @@ int main(void)
 
 	char buf[20];
 
+	init_ssr();
+	init_spi();
+	init_lcd();
+
 	init_timer();
 	init_uart();
-	init_lcd();
-	init_spi();
+
 	init_misc();
 
 
@@ -142,9 +130,9 @@ int main(void)
 			controller(&ctrl, &temp, setpoint);
 
 			if (ctrl.output > now - window)
-				ssr(1);
+				set_ssr(1);
 			else
-				ssr(0);
+				set_ssr(0);
 		
 		}
 
@@ -168,7 +156,7 @@ int main(void)
 			if ((start == 1) && (end == 0)) {
 				/* calc setpoint */
 				if (sec < 90) {
-					setpoint = 170;
+					setpoint = 150;
 				} else if ((sec < 120) || (temp.ext_temp >> 2 < 230)) {
 					setpoint = 230;
 				} else {
@@ -194,17 +182,13 @@ int main(void)
 			lcd_sendline(LCD_LINE_2, buf);
 			printf("%s\n", buf);
 
-			sprintf(buf, "output=%4d",
-				ctrl.output);
+			sprintf(buf, "output=%4d sp=%3d\n",
+				ctrl.output, setpoint);
 			lcd_sendline(LCD_LINE_3, buf);
 			printf("%s\n", buf);
 
-			sprintf(buf, "setpoint=%4d",
-				setpoint);
-			lcd_sendline(LCD_LINE_4, buf);
-			printf("%s\n", buf);
 
-			printf("temp status: %s, %s, %s, %s\n",
+			/*printf("temp status: %s, %s, %s, %s\n",
 				(temp.status & T_OPENCIRCUIT) ?
 				"OPEN CIRCUIT" : "NO OPEN CIRCUIT",
 				(temp.status & T_SHORTGND) ?
@@ -212,8 +196,15 @@ int main(void)
 				(temp.status & T_SHORTVCC) ?
 				"SHORT TO VCC" : "NO SHORT TO VCC",
 				(temp.status & T_FAULT) ? "FAULT" : "NO FAULT");
-	
-				
+			*/
+
+			sprintf(buf, "slope = %4d.%2d",
+				(temp.ext_temp - last_temp) >> 2,
+				((temp.ext_temp - last_temp) & 0x3) * 25);
+			lcd_sendline(LCD_LINE_4, buf);
+			printf("%s\n", buf);
+
+			last_temp = temp.ext_temp;
 		}
 	}
 	return 0;
