@@ -10,46 +10,14 @@
 #include "ssr.h"
 #include "spi.h"
 #include "uart.h"
+#include "timer.h"
+
 #include "temp.h"
 #include "lcd.h"
 #include "controller.h"
 
 
-volatile unsigned char cnt250;
-volatile unsigned char cnt10m, cnt_w, buzz = 1, buzz_st = 0;
-
-
-
-ISR(TIMER0_OVF_vect)
-{
-	TCNT0 += 6;
-	if (++cnt250 == 40) {
-		cnt_w++;
-		cnt10m++;
-		cnt250 = 0;
-	}
-
-
-	if (buzz > 0) {
-		if (buzz_st == 0)
-			PORTA |= 1 << PA4;
-		else
-			PORTA &= ~(1 << PA4);
-		buzz_st = ~buzz_st;
-	} else
-		PORTA &= ~(1 << PA4);
-}
-
-void init_timer(void)
-{
-	/* Setup Timer 0 */
-	/* prescaler/8 */
-	TCCR0 = 1 << CS01;
-	TCNT0 = 0;
-
-	/* Enable timer0 interrupt */
-	TIMSK |= (1<<TOIE0);
-}
+volatile unsigned char buzz = 1, buzz_st = 0;
 
 void init_misc(void)
 {
@@ -61,9 +29,7 @@ void init_misc(void)
 }
 
 
-
-
-int main(void)
+void main(void)
 {
 	struct temp_sensor temp;
 	struct controller ctrl = {
@@ -86,10 +52,17 @@ int main(void)
 	unsigned char start, end;
 
 
+	unsigned long ps1_timer, ps2_timer;
+
+
 	const char initmsg1[] = "Reflow Oven\0";
 	const char initmsg2[] = "Controller 0v1\0";
 
 	char buf[20];
+
+
+
+
 
 	init_ssr();
 	init_spi();
@@ -114,35 +87,37 @@ int main(void)
 
 	start = 0;
 	end = 0;
-	while (1) {
 
-		/* 100ms tick */
-		if (cnt_w > 10) {
-			cnt_w = 0;
+	ps1_timer = ps2_timer = jiffies;
 
-			now += 100;
+	/* main task loop */
+	for (;;) {
+
+		/* control process - 100ms tick */
+		if (jiffies - ps1_timer > 10) {
+			ps1_timer = jiffies;
+
+			/*now += 100;
 			if (now - window > 5000)
-				window += 5000;
+				window += 5000;*/
 
+			/* read temperature */
 			read_temp(&temp);
 
 			/* call controller */
 			controller(&ctrl, &temp, setpoint);
 
-			if (ctrl.output > now - window)
+			/*if (ctrl.output > now - window)
 				set_ssr(1);
 			else
-				set_ssr(0);
+				set_ssr(0);*/
 		
 		}
 
 
-
-		
-
 		/* 1 sec tick */
-		if (cnt10m > 100) {
-			cnt10m = 0;
+		if (jiffies - ps2_timer > 100) {
+			ps2_timer = jiffies;
 			sec++;
 
 			if (buzz > 0)
@@ -207,6 +182,5 @@ int main(void)
 			last_temp = temp.ext_temp;
 		}
 	}
-	return 0;
 }
 

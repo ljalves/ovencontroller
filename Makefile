@@ -21,7 +21,7 @@ CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) \
 
 PRJSRC= src/main.c src/spi.c src/uart.c \
 	src/temp.c src/lcd.c src/controller.c \
-	src/ssr.c
+	src/ssr.c src/timer.c
 
 #  C
 CFILES=$(filter %.c, $(PRJSRC))
@@ -70,6 +70,6 @@ $(PROJECT_NAME).hex: $(PROJECT_NAME).out
 	$(CC) $(CFLAGS) -c $< -o $@
 
 flash:
-	@avrdude -p $(PROGRAMMER_MCU) -c $(AVRDUDE_PROGRAMMER) -P usb -U flash:w:$(PROJECT_NAME).out.hex
+	@avrdude -p $(PROGRAMMER_MCU) -c $(AVRDUDE_PROGRAMMER) -P usb -U flash:w:$(PROJECT_NAME).hex
 
 
