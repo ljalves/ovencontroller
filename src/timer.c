@@ -36,5 +36,5 @@ void init_timer(void)
 	TIMSK |= (1<<TOIE0);
 }
 
-EXPORT_SYMBOL(jiffies);
+//EXPORT_SYMBOL(jiffies);
 

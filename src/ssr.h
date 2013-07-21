@@ -12,11 +12,15 @@
 typedef enum {
 	SSR_OFF,
 	SSR_ON,
+	SSR_PWM,
 } ssr_state_t;
 
 
 void init_ssr(void);
-void set_ssr(ssr_state_t state);
+void set_ssr_period(unsigned int period);
+void set_ssr_pwm(unsigned int pwm);
+void set_ssr_state(ssr_state_t state);
+void ssr_task(void);
 
 
 #endif

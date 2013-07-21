@@ -36,11 +36,8 @@ void main(void)
 		.kp = 11, .kd = 1, .ki = 45,
 		.integral = 0,
 		.output = 0,
-		.max = 5000, .min = 0,
+		.max = 500, .min = 0,
 	};
-
-	unsigned int window = 0;
-	unsigned int now = 0;
 
 	unsigned int sec = 0;
 
@@ -82,6 +79,13 @@ void main(void)
 	read_temp(&temp);
 	ctrl.prev_input = temp.ext_temp >> 2;
 
+
+	/* setup ssr pwm controller */
+	set_ssr_period(500);
+	set_ssr_pwm(250);
+	set_ssr_state(SSR_PWM);
+
+
 	/* Enable global interrupts */
 	sei();
 
@@ -97,21 +101,17 @@ void main(void)
 		if (jiffies - ps1_timer > 10) {
 			ps1_timer = jiffies;
 
-			/*now += 100;
-			if (now - window > 5000)
-				window += 5000;*/
-
 			/* read temperature */
 			read_temp(&temp);
 
 			/* call controller */
 			controller(&ctrl, &temp, setpoint);
 
-			/*if (ctrl.output > now - window)
-				set_ssr(1);
-			else
-				set_ssr(0);*/
-		
+			/* set ssr pwm output value */
+			set_ssr_pwm(ctrl.output);
+
+			/* run ssr task */
+			ssr_task();
 		}
 
 

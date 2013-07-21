@@ -2,8 +2,7 @@
 #define _TIMER_H_
 
 
-volatile unsigned long jiffies;
-EXPORT_SYMBOL(jiffies);
+unsigned long volatile jiffies;
 
 void init_timer(void);
 
