@@ -30,7 +30,7 @@ CFILES=$(filter %.c, $(PRJSRC))
 SOURCEDIRS=./src
 INC=-I./src
 
-TARGET=$(PROJECT_NAME).out
+TARGET=$(PROJECT_NAME).elf
 
 CFLAGS += ${addprefix -I,$(SOURCEDIRS)}
 CFLAGS += -mmcu=$(MCU)
@@ -59,11 +59,15 @@ all: $(PROJECT_NAME).hex $(TARGET)
 $(TARGET): $(OBJDEPS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJDEPS)
 
-$(PROJECT_NAME).hex: $(PROJECT_NAME).out
+$(PROJECT_NAME).hex: $(PROJECT_NAME).elf
 	$(OBJCOPY) -j .text                    \
 		-j .data                       \
 		-O $(HEXFORMAT) $< $@
 
+clean:
+	rm -rf *.o $(PRG).elf *.eps *.png *.pdf *.bak *.hex *.bin *.srec
+	rm -rf *.lst *.map $(EXTRA_CLEAN_FILES)
+	rm -rf ./src/*.o ./src/*.bak ./src/*.lst ./src/*.map
 
 # object from C
 .c.o: 
