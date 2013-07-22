@@ -92,8 +92,12 @@ int main(void)
 	main_state = ST_PREHEAT;
 	total_sec = sec = 0;
 
-	/* main loop */
+	/* init process timers and 'un-phase' them*/
 	ps1_timer = ps2_timer = ps3_timer = now();
+	ps1_timer += 5;
+	ps3_timer += 10;
+
+	/* main loop */
 	for (;;) {
 		time_now = now();
 
@@ -137,14 +141,14 @@ int main(void)
 				break;
 			case ST_PREHEAT:
 				if (temp.avg > (100 << 2)) {
-					setpoint = 150;
+					setpoint = 140;
 					main_state = ST_SOAK;
 					start_buzzer(ONE_BEEP_S);
 					sec = 0;
 				}
 				break;
 			case ST_SOAK:
-				if ((sec > 90) && (temp.avg > (150 << 2))) {
+				if ((sec > 90) && (temp.avg > (140 << 2))) {
 					setpoint = 225;
 					main_state = ST_REFLOW;
 					start_buzzer(TWO_BEEPS_S);
@@ -166,7 +170,7 @@ int main(void)
 				}
 				break;
 			case ST_COOLDOWN:
-				if (temp.avg < 60) {
+				if (temp.avg < (60 << 2)) {
 					main_state = ST_IDLE;
 					start_buzzer(TWO_BEEPS_S);
 				}
@@ -198,7 +202,7 @@ int main(void)
 
 			/* display total time */
 			sprintf(buf, "Time=%02dm%02ds",
-				sec / 60, sec % 60);
+				total_sec / 60, total_sec % 60);
 			lcd_sendline(LCD_LINE_3, buf);
 			printf("%s\n", buf);
 
