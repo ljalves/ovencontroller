@@ -17,6 +17,14 @@
 #include "lcd.h"
 #include "controller.h"
 
+typedef enum {
+	ST_IDLE,
+	ST_PREHEAT,
+	ST_SOAK,
+	ST_REFLOW,
+	ST_PEAK,
+	ST_COOLDOWN,
+} main_state_t;
 
 int main(void)
 {
@@ -33,40 +41,34 @@ int main(void)
 	unsigned int time_now;
 	unsigned int ps1_timer, ps2_timer, ps3_timer;
 
+	/* main state machine */
+	main_state_t main_state;
 
-
-	unsigned int sec = 0;
+	unsigned int total_sec, sec;
 
 	int setpoint = 100;
-
-
-
-
-	unsigned char start, end;
-
-
 
 
 	const char initmsg1[] = "Reflow Oven\0";
 	const char initmsg2[] = "Controller 0v1\0";
 
-	char buf[20];
+
+	char buf[25];
 
 
-	/* init peripherals */
-	init_ssr();
-	init_buzzer();
 	init_spi();
 	init_lcd();
-	init_temp(&temp);
-	init_timer();
-	init_uart();
-
 	/* LCD wellcome message */
 	lcd_sendline(LCD_LINE_1, (char *) initmsg1);
-
 	lcd_sendline(LCD_LINE_2, (char *) initmsg2);
-	_delay_ms(1000);
+
+	init_timer();
+	init_uart();
+	init_ssr();
+	init_buzzer();
+
+
+	init_temp(&temp);
 
 	/* pre-fill previous temperature */
 	ctrl.prev_input = temp.avg;
@@ -77,17 +79,20 @@ int main(void)
 	set_ssr_pwm(250);
 	set_ssr_state(SSR_PWM);
 
+
+	_delay_ms(500);
+
 	/* Enable global interrupts */
 	sei();
-
-	start = 0;
-	end = 0;
-
 
 	/* ready beep */
 	start_buzzer(ONE_BEEP_L);
 
-	/* main task loop */
+	/* TODO: add button control */
+	main_state = ST_PREHEAT;
+	total_sec = sec = 0;
+
+	/* main loop */
 	ps1_timer = ps2_timer = ps3_timer = now();
 	for (;;) {
 		time_now = now();
@@ -117,30 +122,58 @@ int main(void)
 			buzzer_task();
 		}
 
-		/* 1 sec tick */
+		/* main state machine - 1 sec tick */
 		if (time_now - ps2_timer > 100) {
 			ps2_timer += 100;
+			total_sec++;
 			sec++;
 
+			/* calculate temperature rate */
 			temp_rate = temp.avg - last_temp;
 
-			if ((temp.ext_temp >> 2 > 100) && (start == 0)) {
-				start = 1;
-				sec = 0;
-			}
 
-			if ((start == 1) && (end == 0)) {
-				if (sec < 90) {
-					setpoint = 150;
-					//start_buzzer(ONE_BEEP_S);
-				} else if ((sec < 120) || (temp.ext_temp >> 2 < 230)) {
-					//start_buzzer(TWO_BEEPS_S);
-					setpoint = 230;
-				} else {
-					start_buzzer(TWO_BEEPS_L);
-					setpoint = 0;
-					end = 1;
+			switch (main_state) {
+			case ST_IDLE:
+				break;
+			case ST_PREHEAT:
+				if (temp.avg > (100 << 2)) {
+					setpoint = 160;
+					main_state = ST_SOAK;
+					start_buzzer(ONE_BEEP_S);
+					sec = 0;
 				}
+				break;
+			case ST_SOAK:
+				if ((sec > 90) && (temp.avg > (160 << 2))) {
+					setpoint = 225;
+					main_state = ST_REFLOW;
+					start_buzzer(TWO_BEEPS_S);
+					sec = 0;
+				}
+				break;
+			case ST_REFLOW:
+				if ((sec > 30) && (temp.avg > (225 << 2))) {
+					setpoint = 0;
+					main_state = ST_PEAK;
+					start_buzzer(ONE_BEEP_L);
+					sec = 0;
+				}
+				break;
+			case ST_PEAK:
+				if (sec > 10) {
+					main_state = ST_COOLDOWN;
+					start_buzzer(TWO_BEEPS_L);
+				}
+				break;
+			case ST_COOLDOWN:
+				if (temp.avg < 60) {
+					main_state = ST_IDLE;
+					start_buzzer(TWO_BEEPS_S);
+				}
+				break;
+			default:
+				main_state = ST_IDLE;
+				break;
 			}
 
 			/* clear lcd */
@@ -152,7 +185,7 @@ int main(void)
 			} else
 				sign = ' ';
 
-			sprintf(buf, "T=%3d.%02dC  Tr=%c%d.%02dC",
+			sprintf(buf, "T=%3d.%02dC R=%c%d.%02dC/s",
 				temp.inst, (temp.avg & 3) * 25,
 				sign, temp_rate >> 2, (temp_rate & 3) * 25);
 			lcd_sendline(LCD_LINE_1, buf);
@@ -169,6 +202,17 @@ int main(void)
 			lcd_sendline(LCD_LINE_3, buf);
 			printf("%s\n", buf);
 
+
+			sprintf(buf, "State: %s",
+				(main_state == ST_IDLE) ? "IDLE" :
+				(main_state == ST_PREHEAT) ? "PREHEAT" :
+				(main_state == ST_SOAK) ? "SOAK" :
+				(main_state == ST_REFLOW) ? "REFLOW" :
+				(main_state == ST_PEAK) ? "PEAK" :
+				(main_state == ST_COOLDOWN) ? "COOLDOWN" : "?");
+			lcd_sendline(LCD_LINE_4, buf);
+			printf("%s\n", buf);
+			
 
 #ifdef DEBUG
 			sprintf(buf, "int_temp=%4d.%04dC",
