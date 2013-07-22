@@ -54,7 +54,7 @@ void read_spi(chip_cs_t cs, unsigned char len, unsigned char *buf)
 		for (j=0; j<8; j++) {
 			/* clock = 1 */
 			PORTB |= (1<<PB7);
-			_delay_us(10);
+			_delay_us(1);
 
 			/* read bit */
 			buf[i] <<= 1;
@@ -62,7 +62,7 @@ void read_spi(chip_cs_t cs, unsigned char len, unsigned char *buf)
 
 			/* clock = 0 */
 			PORTB &= ~(1<<PB7);
-			_delay_ms(10);
+			_delay_us(1);
 		}
 	}
 

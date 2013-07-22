@@ -94,14 +94,12 @@ int main(void)
 
 	/* init process timers and 'un-phase' them*/
 	ps1_timer = ps2_timer = ps3_timer = now();
-	ps1_timer += 5;
-	ps3_timer += 10;
 
 	/* main loop */
 	for (;;) {
 		time_now = now();
 
-		/* control process - 200ms tick */
+		/* control process - 100ms tick */
 		if (time_now - ps1_timer > 10) {
 			ps1_timer += 10;
 
@@ -117,7 +115,7 @@ int main(void)
 			/* run ssr task */
 			ssr_task();
 		}
-
+#if 1
 		/* buzzer process - 250ms tick */
 		if (time_now - ps3_timer > 25) {
 			ps3_timer += 25;
@@ -125,7 +123,8 @@ int main(void)
 			/* run buzzer task */
 			buzzer_task();
 		}
-
+#endif
+#if 1
 		/* main state machine - 1 sec tick */
 		if (time_now - ps2_timer > 100) {
 			ps2_timer += 100;
@@ -180,6 +179,7 @@ int main(void)
 				break;
 			}
 
+#if 1
 			/* clear lcd */
 			lcd_clear();
 
@@ -216,7 +216,7 @@ int main(void)
 				(main_state == ST_COOLDOWN) ? "COOLDOWN" : "?");
 			lcd_sendline(LCD_LINE_4, buf);
 			printf("%s\n", buf);
-			
+#endif		
 
 #ifdef DEBUG
 			sprintf(buf, "int_temp=%4d.%04dC",
@@ -259,6 +259,7 @@ int main(void)
 
 			last_temp = temp.avg;
 		}
+#endif
 	}
 	return 0;
 }
