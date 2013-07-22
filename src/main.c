@@ -137,14 +137,14 @@ int main(void)
 				break;
 			case ST_PREHEAT:
 				if (temp.avg > (100 << 2)) {
-					setpoint = 160;
+					setpoint = 150;
 					main_state = ST_SOAK;
 					start_buzzer(ONE_BEEP_S);
 					sec = 0;
 				}
 				break;
 			case ST_SOAK:
-				if ((sec > 90) && (temp.avg > (160 << 2))) {
+				if ((sec > 90) && (temp.avg > (150 << 2))) {
 					setpoint = 225;
 					main_state = ST_REFLOW;
 					start_buzzer(TWO_BEEPS_S);
