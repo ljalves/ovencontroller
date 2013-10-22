@@ -21,7 +21,9 @@ CFLAGS=-I. $(INC) -g -mmcu=$(MCU) -O$(OPTLEVEL) \
 
 PRJSRC= src/main.c src/spi.c src/uart.c \
 	src/temp.c src/lcd.c src/controller.c \
-	src/ssr.c src/timer.c src/buzzer.c
+	src/ssr.c src/timer.c src/buzzer.c \
+	src/buttons.c
+
 
 #  C
 CFILES=$(filter %.c, $(PRJSRC))

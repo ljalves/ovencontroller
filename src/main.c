@@ -2,6 +2,8 @@
 
 #define F_CPU 8000000L
 
+#undef DEBUG
+
 #include <stdio.h>
 #include <avr/io.h>
 #include <avr/interrupt.h> 
@@ -12,6 +14,7 @@
 #include "uart.h"
 #include "timer.h"
 #include "buzzer.h"
+#include "buttons.h"
 
 #include "temp.h"
 #include "lcd.h"
@@ -46,12 +49,12 @@ int main(void)
 
 	unsigned int total_sec, sec;
 
-	int setpoint = 100;
+	int setpoint = 0;
 
+	unsigned char sw1 = 0, sw2 = 0;
 
 	const char initmsg1[] = "Reflow Oven\0";
 	const char initmsg2[] = "Controller 0v1\0";
-
 
 	char buf[25];
 
@@ -66,7 +69,7 @@ int main(void)
 	init_uart();
 	init_ssr();
 	init_buzzer();
-
+	init_buttons();
 
 	init_temp(&temp);
 
@@ -88,11 +91,10 @@ int main(void)
 	/* ready beep */
 	start_buzzer(ONE_BEEP_L);
 
-	/* TODO: add button control */
-	main_state = ST_PREHEAT;
-	total_sec = sec = 0;
+	/* Initial state = IDLE */
+	main_state = ST_IDLE;
 
-	/* init process timers and 'un-phase' them*/
+	/* init process timers */
 	ps1_timer = ps2_timer = ps3_timer = now();
 
 	/* main loop */
@@ -114,6 +116,12 @@ int main(void)
 
 			/* run ssr task */
 			ssr_task();
+
+			/* check buttons */
+			if (sw1 == BUTTONS_OFF)
+				sw1 = get_buttons_state(BUTTON1);
+			if (sw2 == BUTTONS_OFF)
+				sw2 = get_buttons_state(BUTTON2);
 		}
 #if 1
 		/* buzzer process - 250ms tick */
@@ -134,9 +142,20 @@ int main(void)
 			/* calculate temperature rate */
 			temp_rate = temp.avg - last_temp;
 
-
 			switch (main_state) {
 			case ST_IDLE:
+
+				if (sw2 == BUTTONS_ON) {
+					main_state = ST_PREHEAT;
+					start_buzzer(ONE_BEEP_S);
+					setpoint = 100;
+				} else {
+					/* turn off SSR */
+					setpoint = 0;		
+				}
+				/* init seconds timer */
+				total_sec = sec = 0;
+
 				break;
 			case ST_PREHEAT:
 				if (temp.avg > (100 << 2)) {
@@ -179,6 +198,15 @@ int main(void)
 				break;
 			}
 
+			if (sw1 == BUTTONS_ON) {
+				main_state = ST_IDLE;
+				start_buzzer(TWO_BEEPS_S);
+				sw1 = BUTTONS_OFF;
+			}
+			if (sw2 == BUTTONS_ON) {
+				sw2 = BUTTONS_OFF;
+			}
+
 #if 1
 			/* clear lcd */
 			lcd_clear();
@@ -193,18 +221,18 @@ int main(void)
 				temp.inst, (temp.avg & 3) * 25,
 				sign, temp_rate >> 2, (temp_rate & 3) * 25);
 			lcd_sendline(LCD_LINE_1, buf);
-			printf("%s\n", buf);
+			//printf("%s\n", buf);
 
 			sprintf(buf, "Tset=%dC    PWM=%d",
 				setpoint, ctrl.output);
 			lcd_sendline(LCD_LINE_2, buf);
-			printf("%s\n", buf);
+			//printf("%s\n", buf);
 
 			/* display total time */
 			sprintf(buf, "Time=%02dm%02ds",
 				total_sec / 60, total_sec % 60);
 			lcd_sendline(LCD_LINE_3, buf);
-			printf("%s\n", buf);
+			//printf("%s\n", buf);
 
 
 			sprintf(buf, "State: %s",
@@ -215,7 +243,7 @@ int main(void)
 				(main_state == ST_PEAK) ? "PEAK" :
 				(main_state == ST_COOLDOWN) ? "COOLDOWN" : "?");
 			lcd_sendline(LCD_LINE_4, buf);
-			printf("%s\n", buf);
+			//printf("%s %d %d\n", buf);
 #endif		
 
 #ifdef DEBUG
